@@ -141,21 +141,46 @@ local function matches_selector(tbl,selector )
   return element_found == element_matches and class_found == class_matches and id_found == id_matches and (class_found or element_found or id_found)
 end
 
+local function copy_style(style, rule) 
+  local rule = rule or {}
+  for k,v in pairs(rule) do style[k] = v end
+  return style
+end
+
 local function matches(self,tbl,level)
   level = level or 1
   local rules,interesting_part,parts
-  for _,v in ipairs(self.priorities) do
+  local style = {}
+  local matched = false
+
+  for i =  #self.priorities, 1, -1 do
+    local v = self.priorities[i]
     for selector,rule in pairs(self.rules[v]) do
       parts = explode(selector," ")
       -- the interesting part depends on the level:
       -- level 1: the last part, level 2, the second last part, ...
-      interesting_part = parts[#parts + 1 - level]
+      local current_level = #parts + 1 - level
+      interesting_part = parts[current_level]
       if matches_selector(tbl,interesting_part) == true then
-        return rule
+        matched = true
+        -- print(selector, v, interesting_part, level,  tbl.element)
+        local parent = tbl.parent or {}
+        for x = current_level - 1, 1, -1 do
+          local part = parts[x]
+          if parent and parent.element then 
+            matched = matches_selector(parent, part)
+            -- print("Looking for", parent.element, part, matched) 
+            parent = parent.parent
+          end
+        end
+        -- return rule
+        if matched then 
+          style = copy_style(style, rule)
+        end
       end
     end
   end
-  return nil
+  return style
 end
 
 
